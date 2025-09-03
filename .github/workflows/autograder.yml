@@ -1,0 +1,84 @@
+name: C++ Classroom Autograder
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    - name: Create build directory
+      run: mkdir build
+
+    - name: Configure CMake
+      run: cd build && cmake ..
+
+    - name: Build
+      run: cd build && make
+
+    - name: Run tests
+      run: cd build && ctest --output-on-failure
+
+    - name: Run assignment executables
+      run: |
+        echo "Running Assignment 1:"
+        cd build && ./assignments/assignment1/assignment1
+
+  grade-assignment:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: always()
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y cmake build-essential
+
+    - name: Build and test with detailed output
+      id: test
+      run: |
+        mkdir build
+        cd build
+        cmake ..
+        make
+        echo "TESTS_OUTPUT<<EOF" >> $GITHUB_OUTPUT
+        ctest --verbose >> $GITHUB_OUTPUT || echo "Tests failed" >> $GITHUB_OUTPUT
+        echo "EOF" >> $GITHUB_OUTPUT
+
+    - name: Generate Grade Report
+      run: |
+        echo "# 📊 Autograding Report" >> grade_report.md
+        echo "" >> grade_report.md
+        echo "## Build Status: ✅ PASSED" >> grade_report.md
+        echo "" >> grade_report.md
+        echo "## Test Results:" >> grade_report.md
+        echo '```' >> grade_report.md
+        cd build && ctest --verbose || echo "Some tests failed"
+        echo '```' >> grade_report.md
+        echo "" >> grade_report.md
+        echo "## 💡 Tips for Improvement:" >> grade_report.md
+        echo "- Ensure all functions are implemented correctly" >> grade_report.md
+        echo "- Check that your code handles edge cases" >> grade_report.md
+        echo "- Make sure to follow the function signatures in the header file" >> grade_report.md
+
+    - name: Upload grade report
+      uses: actions/upload-artifact@v4
+      with:
+        name: grade-report
+        path: grade_report.md
